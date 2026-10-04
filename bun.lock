@@ -8,7 +8,7 @@
         "@changesets/changelog-github": "1.0.1",
         "@changesets/cli": "3.0.2",
         "@oxlint/plugins": "1.79.0",
-        "@sqve/seam": "0.1.0",
+        "@sqve/seam": "0.2.0",
         "@types/bun": "1.4.2",
         "knip": "6.37.0",
         "typescript": "7.0.2",
@@ -288,7 +288,7 @@
 
     "@polka/url": ["@polka/url@1.0.0-next.29", "", {}, "sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww=="],
 
-    "@sqve/seam": ["@sqve/seam@0.1.0", "", { "dependencies": { "@oxlint/plugins": "1.79.0", "@stylistic/eslint-plugin": "5.10.0" }, "peerDependencies": { "vite-plus": "0.3.0" }, "bin": { "seam": "dist/cli.js" } }, "sha512-1uqaJble81+UyBR0gdZL3pKqEdfAkcnKRQZ4fPOaXQ3O6Co9cp9QHeybDhjcBCqWjUPYrHpDR5LMEhzuAR4AXw=="],
+    "@sqve/seam": ["@sqve/seam@0.2.0", "", { "dependencies": { "@oxlint/plugins": "1.79.0", "@stylistic/eslint-plugin": "5.10.0" }, "peerDependencies": { "vite-plus": "0.3.0" }, "bin": { "seam": "./dist/cli.js" } }, "sha512-C0snUqzf6I8ECxEaa2Dp6PoQlkGeRNzamcR+sZKMcDjN9uWtmMpQV6F2Yo5mPml0LdGFMWU7E7J42E7Qmm69mw=="],
 
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
