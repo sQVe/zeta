@@ -1,6 +1,6 @@
 # ADR 0009: Versioned local state and config
 
-- Status: Accepted
+- Status: Superseded by [ADR 0018](./0018-local-state-and-config.md)
 - Date: 2026-10-01
 
 ## Context

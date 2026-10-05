@@ -25,8 +25,9 @@ local setup and verification.
 - `src/` holds capability modules. Folder modules `github/`, `work/`, `session/`, and `ui/` each
   have one public entry file named after the folder, such as `session/session.ts`. Other files in
   the folder are private. Flat modules are `config.ts`, `actions.ts`, `localState.ts`,
-  `commands.ts`, `invariant.ts`, `index.ts`, and `terminal.tsx`. See
-  [ADR 0004](docs/adr/0004-capability-modules.md).
+  `commands.ts`, `invariant.ts`, `query.ts`, `index.ts`, and `terminal.tsx`. See
+  [ADR 0004](docs/adr/0004-capability-modules.md) and
+  [ADR 0017](docs/adr/0017-local-query-language.md).
 - Imports follow the table in ADR 0004. `zeta/module-boundaries` enforces it in ordinary lint. Do
   not silence it; change the table in `scripts/lintRules.ts` when a new edge keeps the ADR's
   directions.
@@ -43,7 +44,7 @@ local setup and verification.
 - Only `terminal.tsx` creates or destroys the renderer, handles signals, or exits. See
   [ADR 0008](docs/adr/0008-terminal-lifetime.md).
 - Parse config and state once, in their owning module. Ask before a change that breaks a saved file.
-  See [ADR 0009](docs/adr/0009-local-state-and-config.md).
+  See [ADR 0018](docs/adr/0018-local-state-and-config.md).
 
 ## Tests
 

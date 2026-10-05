@@ -1,6 +1,6 @@
 # ADR 0013: Hand-written sync over a SQLite cache
 
-- Status: Accepted
+- Status: Superseded by [ADR 0016](./0016-snapshot-and-full-refresh.md)
 - Date: 2026-10-03
 
 ## Context
