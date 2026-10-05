@@ -31,6 +31,9 @@ page with its ETag.
 - A full refresh runs on start, when page 1 changed, every 10 minutes, and after a done.
 - The snapshot saves each page's body with its ETag, so an unchanged restart costs no rate limit.
 - A refresh that did not get every page changes nothing. A complete refresh replaces the item set.
+- Pages shift when threads come or go during a refresh. So a refresh ends by checking every page
+  again with its new ETag, and replaces the item set only when every page answers 304. Otherwise it
+  changes nothing and runs again.
 - Zeta never caps the page count, because a cap would hide threads that are not done.
 - The snapshot lives in `$XDG_CACHE_HOME/zeta/cache.db`, scoped by host and account, and is
   disposable.
@@ -43,6 +46,7 @@ page with its ETag.
 - Cost: a thread marked done outside Zeta can stay up to 10 minutes.
 - Cost: at 2,000 threads, a busy hour can use about half the user's REST limit.
 - Cost: two Zeta processes poll on their own and double the requests.
+- Cost: each full refresh requests every page twice. The second pass is free when nothing moved.
 
 ## See also
 
