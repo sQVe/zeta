@@ -23,11 +23,11 @@
 
 ## Decision
 
-The file rules of ADR 0009 stay: versioned JSON in `config.json` and `state.json`, one parser per
-file, atomic writes, migrations, and a stop on a newer version. Where ADR 0009 names dismissals,
-read saved local state.
+Two Zeta processes may write the same state file. The last write wins.
 
-- Two Zeta processes may write the same state file. The last write wins.
+- The file rules of ADR 0009 stay: versioned JSON in `config.json` and `state.json`, one parser per
+  file, atomic writes, migrations, and a stop on a newer version.
+- Where ADR 0009 names dismissals, read saved local state.
 
 ## Tradeoffs
 
