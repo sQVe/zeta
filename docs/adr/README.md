@@ -29,9 +29,14 @@ decision replaces it, change its status to Superseded with a link to the replace
 - [0006: One command catalog as data](./0006-command-catalog.md)
 - [0007: Side effects as narrow function records](./0007-side-effect-functions.md)
 - [0008: One owner for terminal lifetime](./0008-terminal-lifetime.md)
-- [0009: Versioned local state and config](./0009-local-state-and-config.md)
+- [0009: Versioned local state and config](./0009-local-state-and-config.md), superseded by 0018
 - [0010: One project base shared with Phi](./0010-shared-project-base.md)
 - [0011: GitHub through `gh api`](./0011-github-through-gh-api.md)
-- [0012: Sources find candidates, local rules decide why](./0012-work-sources-and-rules.md)
-- [0013: Hand-written sync over a SQLite cache](./0013-local-sync-cache.md)
+- [0012: Sources find candidates, local rules decide why](./0012-work-sources-and-rules.md),
+  superseded by 0015
+- [0013: Hand-written sync over a SQLite cache](./0013-local-sync-cache.md), superseded by 0016
 - [0014: Results for expected failures, exceptions for bugs, and checked boundaries](./0014-coding-conventions.md)
+- [0015: Notifications first, with a batched subject lookup](./0015-notifications-first.md)
+- [0016: A SQLite snapshot with a checked full refresh](./0016-snapshot-and-full-refresh.md)
+- [0017: GitHub-style qualifiers, evaluated locally](./0017-local-query-language.md)
+- [0018: Local state for two Zeta processes](./0018-local-state-and-config.md)

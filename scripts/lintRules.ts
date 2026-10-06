@@ -24,6 +24,7 @@ const flatModules = new Set([
   'localState',
   'commands',
   'invariant',
+  'query',
   'index',
   'terminal',
 ]);
@@ -32,10 +33,11 @@ const allowedImports = new Map<string, Set<string>>([
   ['work', new Set(['invariant'])],
   ['config', new Set(['invariant'])],
   ['invariant', new Set()],
+  ['query', new Set(['work', 'invariant'])],
   ['github', new Set(['work', 'invariant'])],
   ['localState', new Set(['work', 'invariant'])],
   ['actions', new Set(['work', 'config', 'invariant'])],
-  ['session', new Set(['work', 'invariant'])],
+  ['session', new Set(['work', 'query', 'invariant'])],
   ['commands', new Set(['work', 'session', 'invariant'])],
   ['ui', new Set(['work', 'session', 'commands', 'invariant'])],
   ['terminal', new Set(['ui', 'session', 'commands', 'config', 'invariant'])],
@@ -43,8 +45,8 @@ const allowedImports = new Map<string, Set<string>>([
 ]);
 
 const typeOnlyImports = new Map([['session', new Set(['github', 'actions', 'localState'])]]);
-const runtimeModules = new Set(['work', 'invariant', 'session', 'commands', 'ui']);
-const rendererFreeModules = new Set(['work', 'invariant', 'session', 'commands']);
+const runtimeModules = new Set(['work', 'invariant', 'query', 'session', 'commands', 'ui']);
+const rendererFreeModules = new Set(['work', 'invariant', 'query', 'session', 'commands']);
 const packageRoots = new Map<string, string | undefined>();
 
 // The nearest package.json marks the root, so a `src` segment above it never counts.

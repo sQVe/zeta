@@ -1,6 +1,6 @@
 # ADR 0012: Sources find candidates, local rules decide why
 
-- Status: Accepted
+- Status: Superseded by [ADR 0015](./0015-notifications-first.md)
 - Date: 2026-10-03
 
 ## Context
