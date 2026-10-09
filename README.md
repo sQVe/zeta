@@ -5,7 +5,7 @@ failed checks, and conflicted pull requests.
 
 <!-- prettier-ignore -->
 > [!IMPORTANT]
-> Zeta is in early setup. The repository contains development tooling only; there is no app yet.
+> Zeta is in early development. Run `bun run start` to open it; it does not show GitHub work yet.
 
 - [Development](./docs/development.md)
 - [Documentation](./docs/README.md)
