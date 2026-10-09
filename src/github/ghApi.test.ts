@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { GhRun, GitHubEffects } from './ghApi.ts';
+import type { GhResponse, GhRun, GitHubEffects, GitHubResult } from './ghApi.ts';
 import { createGhRunner, requestGh } from './ghApi.ts';
 
 const exited = (exitCode: number, stdout: string, stderr = ''): GhRun => ({
@@ -80,6 +80,43 @@ test('requestGh reports rateLimited from x-ratelimit-reset', async () => {
   expect(result).toEqual({
     ok: false,
     failure: { kind: 'rateLimited', resetAt: new Date('2026-01-01T00:00:00Z') },
+  });
+});
+
+const oneMinuteOut: GitHubResult<GhResponse> = {
+  ok: false,
+  failure: { kind: 'rateLimited', resetAt: new Date('2026-01-01T00:01:00Z') },
+};
+
+test('requestGh reports rateLimited one minute out for a 429 without rate limit headers', async () => {
+  const text = 'HTTP/2.0 429 Too Many Requests\r\n\r\n{}';
+
+  const result = await failureOf(exited(1, text), new Date('2026-01-01T00:00:00Z'));
+
+  expect(result).toEqual(oneMinuteOut);
+});
+
+test('requestGh reports rateLimited one minute out for a 403 secondary rate limit', async () => {
+  const text =
+    'HTTP/2.0 403 Forbidden\r\nX-RateLimit-Remaining: 5\r\n\r\n{"message":"You have exceeded a secondary rate limit."}';
+
+  const result = await failureOf(exited(1, text), new Date('2026-01-01T00:00:00Z'));
+
+  expect(result).toEqual(oneMinuteOut);
+});
+
+test('requestGh reports requestFailed for a 403 permission error', async () => {
+  const text = 'HTTP/2.0 403 Forbidden\r\n\r\n{"message":"Resource not accessible by integration"}';
+
+  const result = await failureOf(exited(1, text));
+
+  expect(result).toEqual({
+    ok: false,
+    failure: {
+      kind: 'requestFailed',
+      status: 403,
+      message: 'Resource not accessible by integration',
+    },
   });
 });
 

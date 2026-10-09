@@ -34,6 +34,7 @@ const okStatusMax = 300;
 const forbiddenStatus = 403;
 const tooManyRequestsStatus = 429;
 const millisecondsPerSecond = 1000;
+const fallbackDelaySeconds = 60;
 
 export const createGhRunner = (): GitHubEffects['runGh'] => async (args, signal) => {
   const executable = Bun.which('gh', { PATH: Bun.env.PATH ?? '' });
@@ -95,6 +96,33 @@ const parseHttp = (stdout: string): ParsedHttp | null => {
   return { status: Number(statusMatch[1]), headers, bodyText };
 };
 
+const readBodyMessage = (bodyText: string): string | null => {
+  try {
+    const body: unknown = JSON.parse(bodyText);
+
+    if (typeof body === 'object' && body !== null && 'message' in body) {
+      return String(body.message);
+    }
+  } catch {
+    // The body is not JSON, so there is no message.
+  }
+
+  return null;
+};
+
+const readErrorMessage = (parsed: ParsedHttp): string =>
+  readBodyMessage(parsed.bodyText) ?? `HTTP ${parsed.status}`;
+
+const isSecondaryLimit = (parsed: ParsedHttp): boolean => {
+  if (parsed.status === tooManyRequestsStatus) {
+    return true;
+  }
+
+  const message = readBodyMessage(parsed.bodyText);
+
+  return parsed.status === forbiddenStatus && /secondary rate limit/i.test(message ?? '');
+};
+
 const findResetAt = (parsed: ParsedHttp, now: Date): Date | null => {
   const limited = parsed.status === forbiddenStatus || parsed.status === tooManyRequestsStatus;
 
@@ -116,21 +144,11 @@ const findResetAt = (parsed: ParsedHttp, now: Date): Date | null => {
     return new Date(now.getTime() + delaySeconds * millisecondsPerSecond);
   }
 
-  return null;
-};
-
-const readErrorMessage = (parsed: ParsedHttp): string => {
-  try {
-    const body: unknown = JSON.parse(parsed.bodyText);
-
-    if (typeof body === 'object' && body !== null && 'message' in body) {
-      return String(body.message);
-    }
-  } catch {
-    // The body is not JSON, so fall back to the status.
+  if (isSecondaryLimit(parsed)) {
+    return new Date(now.getTime() + fallbackDelaySeconds * millisecondsPerSecond);
   }
 
-  return `HTTP ${parsed.status}`;
+  return null;
 };
 
 const parseBody = (bodyText: string): { ok: true; body: unknown } | { ok: false } => {
