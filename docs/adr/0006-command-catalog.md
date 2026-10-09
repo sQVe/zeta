@@ -30,8 +30,9 @@ remaps read the same records, and tests assert intents without running effects.
 - Each command has an id, a label, a scope (`global`, `list`, `preview`, or `modal`), and default
   keys.
 - `disabledReason(snapshot)` returns why the command cannot run, or nothing when it can.
-- `intent(snapshot)` returns an application intent for the session or a UI intent for React. It
-  performs no I/O.
+- `intent(snapshot)` returns an application intent for the session, a UI intent for React, or a
+  terminal intent. It performs no I/O. Only `terminal.tsx` handles terminal intents, so the session
+  never owns the process lifetime.
 - Keymap layers, help, and availability come from the catalog. Key handlers read the latest
   snapshot, not one captured at render.
 - The session checks preconditions again before it acts. A disabled key is not a safety check.
