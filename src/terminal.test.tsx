@@ -81,7 +81,7 @@ test('a second shutdown destroys the renderer once and changes nothing more', as
   await settle();
 
   expect(harness.calls).toEqual({ destroy: 1, unmount: 1 });
-  expect(harness.exitCodes).toEqual([0, 0]);
+  expect(harness.exitCodes).toEqual([0]);
   expect(harness.handlers.size).toBe(0);
   expect(harness.listeners.size).toBe(0);
 });
@@ -129,4 +129,91 @@ test('an unknown theme gives the dark palette', async () => {
   await startTerminal({ session: harness.session, catalog }, harness.effects);
 
   expect(harness.latestTheme()).toBeNull();
+});
+
+test('SIGINT during a pending open destroys the renderer once and exits 0 without rendering', async () => {
+  const harness = createHarness('dark');
+  const realOpen = harness.effects.open;
+  const { promise: gate, resolve: release } = Promise.withResolvers<undefined>();
+
+  harness.effects.open = async () => {
+    await gate;
+
+    return realOpen();
+  };
+
+  const started = startTerminal({ session: harness.session, catalog }, harness.effects);
+
+  harness.handlers.get('SIGINT')?.();
+  await settle();
+
+  expect(harness.exitCodes).toEqual([]);
+
+  release(undefined);
+  await started;
+  await settle();
+
+  expect(harness.calls.destroy).toBe(1);
+  expect(harness.rendered).toHaveLength(0);
+  expect(harness.exitCodes).toEqual([0]);
+  expect(harness.handlers.size).toBe(0);
+});
+
+test('a rejected open prints the error, exits 1, and removes the process listeners', async () => {
+  const harness = createHarness('dark');
+  const failure = new Error('no terminal');
+
+  harness.effects.open = () => Promise.reject(failure);
+
+  await startTerminal({ session: harness.session, catalog }, harness.effects);
+  await settle();
+
+  expect(harness.printed).toEqual([failure]);
+  expect(harness.exitCodes).toEqual([1]);
+  expect(harness.handlers.size).toBe(0);
+  expect(harness.calls.destroy).toBe(0);
+});
+
+const startWithRejectingOpen = (harness: ReturnType<typeof createHarness>, failure: Error) => {
+  const { promise: gate, reject } = Promise.withResolvers<never>();
+
+  harness.effects.open = () => gate;
+
+  const started = startTerminal({ session: harness.session, catalog }, harness.effects);
+
+  return {
+    started,
+    rejectOpen: () => {
+      reject(failure);
+    },
+  };
+};
+
+test('a quit before a failing open still prints the error and exits 1 once', async () => {
+  const harness = createHarness('dark');
+  const failure = new Error('no terminal');
+  const { started, rejectOpen } = startWithRejectingOpen(harness, failure);
+
+  harness.handlers.get('SIGINT')?.();
+  rejectOpen();
+  await started;
+  await settle();
+
+  expect(harness.printed).toEqual([failure]);
+  expect(harness.exitCodes).toEqual([1]);
+});
+
+test('a fatal error before a quit still exits 1 once with the error printed', async () => {
+  const harness = createHarness('dark');
+  const failure = new Error('crashed');
+  const { started, rejectOpen } = startWithRejectingOpen(harness, new Error('unused'));
+
+  harness.handlers.get('uncaughtException')?.(failure);
+  harness.handlers.get('SIGINT')?.();
+  rejectOpen();
+  await started;
+  await settle();
+
+  expect(harness.printed).toEqual([failure]);
+  expect(harness.exitCodes).toEqual([1]);
 });

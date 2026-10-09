@@ -50,11 +50,23 @@ const openOpenTui = async (): Promise<{
 }> => {
   const renderer = await createCliRenderer({ exitOnCtrlC: false, exitSignals: [] });
 
-  return {
-    renderer,
-    root: createRoot(renderer),
-    keymap: createDefaultOpenTuiKeymap(renderer),
-  };
+  let created = false;
+
+  try {
+    const opened = {
+      renderer,
+      root: createRoot(renderer),
+      keymap: createDefaultOpenTuiKeymap(renderer),
+    };
+
+    created = true;
+
+    return opened;
+  } finally {
+    if (!created) {
+      renderer.destroy();
+    }
+  }
 };
 
 const listenToProcess = (
@@ -84,13 +96,26 @@ export const startTerminal = async (
   effects: TerminalEffects = processEffects,
 ): Promise<void> => {
   const { session, catalog } = dependencies;
-  const { renderer, root, keymap } = await effects.open();
   let themeMode: ThemeMode = null;
   const themeListeners = new Set<() => void>();
   let shutdownPromise: Promise<void> | undefined;
+
   const removers: (() => void)[] = [];
 
-  const runShutdown = (): void => {
+  // Shutdown waits for this promise, so a signal while it is pending still destroys the renderer.
+  const openPromise = effects.open();
+
+  const settledOpen = async () => {
+    try {
+      return await openPromise;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const runShutdown = async (): Promise<void> => {
+    const opened = await settledOpen();
+
     try {
       session.stop();
 
@@ -98,46 +123,72 @@ export const startTerminal = async (
         remove();
       }
 
-      root.unmount();
+      opened?.root.unmount();
       themeListeners.clear();
     } finally {
-      renderer.destroy();
+      opened?.renderer.destroy();
     }
   };
 
   const shutdown = (): Promise<void> => {
-    shutdownPromise ??= Promise.resolve().then(runShutdown);
+    shutdownPromise ??= runShutdown();
 
     return shutdownPromise;
   };
 
-  const reportAndExit = (error: unknown): void => {
-    effects.printError(error);
-    effects.exit(1);
-  };
+  const isShuttingDown = (): boolean => shutdownPromise !== undefined;
 
-  const quit = (): void => {
-    shutdown()
-      .then(() => {
-        effects.exit(0);
-      })
-      .catch(reportAndExit);
-  };
+  let fatal: { error: unknown } | undefined;
+  let finishing = false;
 
-  const fail = (reason: unknown): void => {
+  const finish = (): void => {
+    if (finishing) {
+      return;
+    }
+
+    finishing = true;
+
     shutdown()
-      .catch(() => undefined)
+      .then(
+        () => undefined,
+        (error: unknown) => {
+          fatal ??= { error };
+        },
+      )
       .then(() => {
-        reportAndExit(reason);
+        if (fatal === undefined) {
+          effects.exit(0);
+
+          return;
+        }
+
+        effects.printError(fatal.error);
+        effects.exit(1);
       })
       .catch(() => {
         effects.exit(1);
       });
   };
 
+  const quit = (): void => {
+    finish();
+  };
+
+  const fail = (reason: unknown): void => {
+    fatal ??= { error: reason };
+    finish();
+  };
+
   const handleIntent = (_intent: TerminalIntent) => {
     quit();
   };
+
+  removers.push(
+    effects.listen('SIGINT', quit),
+    effects.listen('SIGTERM', quit),
+    effects.listen('uncaughtException', fail),
+    effects.listen('unhandledRejection', fail),
+  );
 
   const themeSource: ThemeSource = {
     getThemeMode: () => themeMode,
@@ -158,15 +209,19 @@ export const startTerminal = async (
     }
   };
 
-  removers.push(
-    effects.listen('SIGINT', quit),
-    effects.listen('SIGTERM', quit),
-    effects.listen('uncaughtException', fail),
-    effects.listen('unhandledRejection', fail),
-  );
-
   try {
+    const { renderer, root, keymap } = await openPromise;
+
+    if (isShuttingDown()) {
+      return;
+    }
+
     themeMode = await renderer.waitForThemeMode(themeWaitMilliseconds);
+
+    if (isShuttingDown()) {
+      return;
+    }
+
     renderer.on('theme_mode', onThemeMode);
     removers.push(() => renderer.off('theme_mode', onThemeMode));
 
