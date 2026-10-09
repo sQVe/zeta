@@ -157,8 +157,9 @@ const parseBody = (bodyText: string): { ok: true; body: unknown } | { ok: false 
   }
 
   try {
-    // SAFETY: JSON.parse returns any, and the caller treats the value as unknown.
-    return { ok: true, body: JSON.parse(bodyText) as unknown };
+    const body: unknown = JSON.parse(bodyText);
+
+    return { ok: true, body };
   } catch {
     return { ok: false };
   }

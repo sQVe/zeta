@@ -16,20 +16,20 @@ export interface NotificationThread {
   repository: string;
 }
 
-export const toThreadId = (value: string): ThreadId => {
-  invariant(value !== '', 'A thread ID must not be empty.');
+const isThreadId = (value: string): value is ThreadId => value !== '';
 
-  // SAFETY: the invariant above rejects the only invalid value, an empty string.
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- brand constructor
-  return value as ThreadId;
+const isViewerLogin = (value: string): value is ViewerLogin => value !== '';
+
+export const toThreadId = (value: string): ThreadId => {
+  invariant(isThreadId(value), 'A thread ID must not be empty.');
+
+  return value;
 };
 
 export const toViewerLogin = (value: string): ViewerLogin => {
-  invariant(value !== '', 'A viewer login must not be empty.');
+  invariant(isViewerLogin(value), 'A viewer login must not be empty.');
 
-  // SAFETY: the invariant above rejects the only invalid value, an empty string.
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- brand constructor
-  return value as ViewerLogin;
+  return value;
 };
 
 export const isDoneOnGitHub = (thread: NotificationThread): boolean =>
