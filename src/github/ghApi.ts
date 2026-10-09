@@ -7,7 +7,7 @@ export interface GitHubEffects {
   now: () => Date;
 }
 
-type GitHubFailure =
+export type GitHubFailure =
   | { kind: 'ghMissing' }
   | { kind: 'notSignedIn' }
   | { kind: 'rateLimited'; resetAt: Date }
