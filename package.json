@@ -28,7 +28,8 @@
     "@opentui/core": "0.5.14",
     "@opentui/keymap": "0.5.14",
     "@opentui/react": "0.5.14",
-    "react": "19.3.0"
+    "react": "19.3.0",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@changesets/changelog-github": "1.0.1",
