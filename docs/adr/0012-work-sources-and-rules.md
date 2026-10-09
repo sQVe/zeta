@@ -1,32 +1,30 @@
 # ADR 0012: Sources find candidates, local rules decide why
 
-- Status: Superseded by [ADR 0015](./0015-notifications-first.md)
-- Date: 2026-10-03
+**Date**: 2026-10-03\
+**Status**: Superseded\
+**Superseded by**: [ADR 0015](./0015-notifications-first.md)\
+**Related**: [ADR 0011: GitHub through `gh api`](./0011-github-through-gh-api.md),
+[ADR 0013: Hand-written sync over a SQLite cache](./0013-local-sync-cache.md)
 
 ## Context
 
-- Zeta shows GitHub work that needs action, with every reason for each item. It will grow more
-  sources and reasons later, so both must grow without a redesign.
-- The first version covers notifications, pull requests that request the viewer's review, the
-  viewer's own pull requests, and pull requests assigned to the viewer.
-- Notifications cover pull requests, issues, releases, check suites, discussions, and more. Their
-  payload has a title, type, and REST URL, but no node ID. Check suite notifications have no URL.
-- GitHub search cannot express some reasons, such as merge conflicts.
-- Rules that need GitHub to test are slow to test and hard to change.
+Zeta shows GitHub work that needs action, with every reason for each item. It will grow more sources
+and reasons later, so both must grow without a redesign.
 
-## Options considered
+The first version covers notifications, pull requests that request the viewer's review, the viewer's
+own pull requests, and pull requests assigned to the viewer.
 
-- One search query per reason, so GitHub does the filtering. Rejected: some reasons cannot be
-  searched, and the rules would live in query strings that tests cannot check without GitHub.
-- Sources and rules in config from the start. Deferred: the basic sources come first, and the
-  structure below lets config add them later without a redesign.
-- User-written rule code loaded at runtime. Deferred: it needs a plugin contract and a trust model.
-- Sources as a list that returns candidates, and named local rules over plain facts. Chosen: sources
-  and rules each grow by adding an entry, and the rules run in tests without GitHub.
+Notifications cover pull requests, issues, releases, check suites, discussions, and more. Their
+payload has a title, type, and REST URL, but no node ID. Check suite notifications have no URL.
+
+GitHub search cannot express some reasons, such as merge conflicts. Rules that need GitHub to test
+are slow to test and hard to change.
 
 ## Decision
 
-Sources decide which subjects Zeta fetches. Rules in `work` decide why each one needs action.
+Sources decide which subjects Zeta fetches, and rules in `work` decide why each one needs action.
+Sources are a list that returns candidates, and named local rules run over plain facts. Sources and
+rules each grow by adding an entry, and the rules run in tests without GitHub.
 
 ### Sources
 
@@ -59,16 +57,33 @@ Sources decide which subjects Zeta fetches. Rules in `work` decide why each one 
   the notification payload holds.
 - A rule that needs a new fact adds it to the facts type and to the query in the same change.
 
-## Tradeoffs
+## Consequences
+
+### Positive
 
 - New sources and reasons need no change to the session, UI, or transport.
 - Every rule runs in unit tests with plain fact values.
-- Cost: every refresh fetches every fact any rule reads.
-- Cost: items of subject types without detail lookups show only a title and a type.
-- Cost: changing a source or rule still needs a code change until config supports it.
-- Cost: each search is capped by GitHub search limits.
 
-## See also
+### Negative
 
-- [ADR 0011: GitHub through `gh api`](./0011-github-through-gh-api.md)
-- [ADR 0013: Hand-written sync over a SQLite cache](./0013-local-sync-cache.md)
+- Every refresh fetches every fact any rule reads.
+- Items of subject types without detail lookups show only a title and a type.
+- Changing a source or rule still needs a code change until config supports it.
+- Each search is capped by GitHub search limits.
+
+## Alternatives considered
+
+### One search query per reason
+
+Use one search query per reason, so GitHub does the filtering. Rejected because some reasons cannot
+be searched, and the rules would live in query strings that tests cannot check without GitHub.
+
+### Sources and rules in config
+
+Put sources and rules in config from the start. Deferred because the basic sources come first, and
+the chosen structure lets config add them later without a redesign.
+
+### User-written rule code
+
+Load user-written rule code at runtime. Deferred because it needs a plugin contract and a trust
+model.

@@ -1,40 +1,36 @@
 # ADR 0013: Hand-written sync over a SQLite cache
 
-- Status: Superseded by [ADR 0016](./0016-snapshot-and-full-refresh.md)
-- Date: 2026-10-03
+**Date**: 2026-10-03\
+**Status**: Superseded\
+**Superseded by**: [ADR 0016](./0016-snapshot-and-full-refresh.md)\
+**Related**: [GitHub notifications API](https://docs.github.com/en/rest/activity/notifications),
+[TanStack DB SQLite persistence](https://tanstack.com/db/latest/docs/guides/sqlite-persistence),
+[TinyBase Bun SQLite persister](https://tinybase.org/api/persister-sqlite-bun/functions/creation/createsqlitebunpersister/)
 
 ## Context
 
-- GitHub tools that fetch everything on each start feel slow. Zeta should show work at once and then
-  bring it up to date.
-- GitHub is the source of truth, and Zeta controls no sync server. GitHub sends no change events,
-  and a search never reports the items that left it.
-- `GET /notifications` answers `If-Modified-Since` with a 304 that GitHub says does not count
-  against the rate limit, and asks clients to wait `X-Poll-Interval` seconds between polls. GraphQL
-  search accepts `updated:>TIMESTAMP` with sorting by update time.
-- Actions such as marking a notification read should show their result at once, not after the next
-  refresh.
-- Zero and Electric need a sync server we control. Replicache expects a browser. LiveStore syncs
-  with its own backend. TanStack DB and TinyBase run on Bun, but neither fetches GitHub changes or
-  finds removed items for us.
+GitHub tools that fetch everything on each start feel slow. Zeta should show work at once and then
+bring it up to date.
 
-## Options considered
+GitHub is the source of truth, and Zeta controls no sync server. GitHub sends no change events, and
+a search never reports the items that left it.
 
-- Fetch everything on each refresh and keep nothing on disk. Rejected: start waits on the network,
-  and every poll costs full requests.
-- TanStack DB. Rejected: its optimistic rollback works on Bun, but its disk store needs
-  `better-sqlite3`, and the GitHub fetching and removal checks stay custom. It would replace the
-  session store.
-- TinyBase. Rejected: it stores data on `bun:sqlite`, but rollback covers only local changes. A
-  failed GitHub call still needs custom code.
-- LiveStore, RxDB, Replicache, Zero, or Electric. Rejected: each expects a sync protocol or server
-  that GitHub does not provide.
-- Sync written in the session store, with a SQLite cache. Chosen: the GitHub-specific work is custom
-  in every option, and this keeps one owner for state without a dependency.
+`GET /notifications` answers `If-Modified-Since` with a 304 that GitHub says does not count against
+the rate limit. It asks clients to wait `X-Poll-Interval` seconds between polls. GraphQL search
+accepts `updated:>TIMESTAMP` with sorting by update time.
+
+Actions such as marking a notification read should show their result at once, not after the next
+refresh.
+
+Zero and Electric need a sync server we control. Replicache expects a browser. LiveStore syncs with
+its own backend. TanStack DB and TinyBase run on Bun, but neither fetches GitHub changes or finds
+removed items for us.
 
 ## Decision
 
-The session store syncs GitHub data itself and keeps a disposable cache in SQLite.
+The session store syncs GitHub data itself and keeps a disposable cache in SQLite. The
+GitHub-specific work is custom in every option, and this keeps one owner for state without a
+dependency.
 
 ### Cache
 
@@ -71,20 +67,42 @@ The session store syncs GitHub data itself and keeps a disposable cache in SQLit
 - When the request succeeds, the overlay stays until a fetch returns facts that agree with it.
 - Overlays live in memory only. A pending action is lost on restart, and there is no offline queue.
 
-## Tradeoffs
+## Consequences
+
+### Positive
 
 - Zeta shows work from the cache before the network answers.
 - Most polls send small or unchanged responses, and unchanged notification polls cost no rate limit.
 - Actions show their result at once and roll back alone on failure.
 - No new dependency, and the session store stays the one owner of state.
-- Cost: Zeta owns sync, removal checks, overlays, and their race tests.
-- Cost: between full fetches, an item that left a search can stay visible.
-- Cost: no guarantee was found that every check change updates a PR's `updatedAt`, so check status
-  can lag until the next full fetch.
-- Cost: a pending action is lost when Zeta exits before it finishes.
 
-## See also
+### Negative
 
-- [GitHub notifications API](https://docs.github.com/en/rest/activity/notifications)
-- [TanStack DB SQLite persistence](https://tanstack.com/db/latest/docs/guides/sqlite-persistence)
-- [TinyBase Bun SQLite persister](https://tinybase.org/api/persister-sqlite-bun/functions/creation/createsqlitebunpersister/)
+- Zeta owns sync, removal checks, overlays, and their race tests.
+- Between full fetches, an item that left a search can stay visible.
+- No guarantee was found that every check change updates a PR's `updatedAt`, so check status can lag
+  until the next full fetch.
+- A pending action is lost when Zeta exits before it finishes.
+
+## Alternatives considered
+
+### Full refresh without a disk cache
+
+Fetch everything on each refresh and keep nothing on disk. Rejected because start waits on the
+network, and every poll costs full requests.
+
+### TanStack DB
+
+Use TanStack DB. Rejected because its optimistic rollback works on Bun, but its disk store needs
+`better-sqlite3`, and the GitHub fetching and removal checks stay custom. It would replace the
+session store.
+
+### TinyBase
+
+Use TinyBase. Rejected because it stores data on `bun:sqlite`, but rollback covers only local
+changes. A failed GitHub call still needs custom code.
+
+### LiveStore, RxDB, Replicache, Zero, or Electric
+
+Use LiveStore, RxDB, Replicache, Zero, or Electric. Rejected because each expects a sync protocol or
+server that GitHub does not provide.

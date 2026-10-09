@@ -1,31 +1,27 @@
 # ADR 0009: Versioned local state and config
 
-- Status: Superseded by [ADR 0018](./0018-local-state-and-config.md)
-- Date: 2026-10-01
+**Date**: 2026-10-01\
+**Status**: Superseded\
+**Superseded by**: [ADR 0018](./0018-local-state-and-config.md)\
+**Related**: [ADR 0006: One command catalog as data](./0006-command-catalog.md),
+[XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/latest/)
 
 ## Context
 
-- Zeta saves dismissals between runs and reads a user config with key remaps and repository
-  locations.
-- A crash during a write, a corrupt file, or an older Zeta reading a newer file must not destroy
-  saved data.
-- In Tau, a parse-once rule still produced four parsers for one value. Each file needs one parser
-  owner.
-- Zeta runs as one process per user. No use case needs two sessions writing one state file.
+Zeta saves dismissals between runs and reads a user config with key remaps and repository locations.
 
-## Options considered
+A crash during a write, a corrupt file, or an older Zeta reading a newer file must not destroy saved
+data.
 
-- Unversioned JSON. Rejected: a reader cannot tell an older format from a newer one.
-- Start with empty state and overwrite a file that fails to parse. Rejected: it silently destroys
-  saved dismissals.
-- A database such as SQLite. Rejected: one small file per user needs no query engine.
-- Locks or merging for several writers. Deferred: no second-session use case exists.
-- Versioned JSON files with one parser each and atomic writes. Chosen: each file has one owner, a
-  version, and a write that cannot leave half a file.
+In Tau, a parse-once rule still produced four parsers for one value. Each file needs one parser
+owner.
+
+Zeta runs as one process per user. No use case needs two sessions writing one state file.
 
 ## Decision
 
-Config and local state are versioned JSON files, parsed once at startup by their owning module.
+Config and local state are versioned JSON files, parsed once at startup by their owning module, with
+atomic writes. Each file has one owner, a version, and a write that cannot leave half a file.
 
 ### Files
 
@@ -58,15 +54,34 @@ Config and local state are versioned JSON files, parsed once at startup by their
 - Each format change bumps the version and adds a migration with fixture tests.
 - Ask the user before any change that breaks an existing config or state file.
 
-## Tradeoffs
+## Consequences
+
+### Positive
 
 - Saved dismissals survive crashes, corrupt files, and older versions.
 - Every format change has a version and a tested migration.
-- Cost: users must add a `version` field to their config.
-- Cost: running two Zeta processes at once can lose dismissals.
-- Cost: invalid state needs a manual reset before Zeta saves dismissals again.
 
-## See also
+### Negative
 
-- [ADR 0006: One command catalog as data](./0006-command-catalog.md)
-- [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/latest/)
+- Users must add a `version` field to their config.
+- Running two Zeta processes at once can lose dismissals.
+- Invalid state needs a manual reset before Zeta saves dismissals again.
+
+## Alternatives considered
+
+### Unversioned JSON
+
+Use unversioned JSON. Rejected because a reader cannot tell an older format from a newer one.
+
+### Overwrite invalid state
+
+Start with empty state and overwrite a file that fails to parse. Rejected because it silently
+destroys saved dismissals.
+
+### A database
+
+Use a database such as SQLite. Rejected because one small file per user needs no query engine.
+
+### Several writers with locks or merging
+
+Use locks or merging for several writers. Deferred because no second-session use case exists.
