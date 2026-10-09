@@ -18,10 +18,17 @@
     "style:check": "bunx --bun seam",
     "style:fix": "bunx --bun seam --fix",
     "prepare": "bunx --bun vp config",
+    "start": "bun run src/index.ts",
     "test": "bun test",
     "test:changed": "bun test --changed",
     "typecheck": "bunx --bun tsc --noEmit",
     "release:github": "bunx --bun changeset tag"
+  },
+  "dependencies": {
+    "@opentui/core": "0.5.14",
+    "@opentui/keymap": "0.5.14",
+    "@opentui/react": "0.5.14",
+    "react": "19.3.0"
   },
   "devDependencies": {
     "@changesets/changelog-github": "1.0.1",
@@ -29,6 +36,7 @@
     "@oxlint/plugins": "1.79.0",
     "@sqve/seam": "0.2.0",
     "@types/bun": "1.4.2",
+    "@types/react": "19.3.0",
     "knip": "6.37.0",
     "typescript": "7.0.2",
     "vite-plus": "0.3.0"
