@@ -1,33 +1,30 @@
 # ADR 0005: One session store outside React
 
-- Status: Accepted
-- Date: 2026-10-01
+**Date**: 2026-10-01\
+**Status**: Accepted\
+**Related**: [ADR 0004: Capability modules with an enforced import table](./0004-capability-modules.md),
+[gh-dash PR #746](https://github.com/dlvhdr/gh-dash/pull/746),
+[Gemini CLI issue #27844](https://github.com/google-gemini/gemini-cli/issues/27844)
 
 ## Context
 
-- Refresh timers, child processes, and file writes must keep running while components mount and
-  unmount, and shutdown must stop them without React.
-- lazygit and gh-dash run refresh outside their view layer. The surveyed OpenTUI apps use several
-  state models, and none needs a store library.
-- gh-dash PR #746 shows a cache that made manual refresh show stale reviewer status. lazygit waits
-  for one poll to finish before the next and drops results from an older refresh.
-- A slow network call should not delay the first frame. Gemini CLI issue #27844 reports network work
-  that delayed a local prompt.
+Refresh timers, child processes, and file writes must keep running while components mount and
+unmount, and shutdown must stop them without React.
 
-## Options considered
+lazygit and gh-dash run refresh outside their view layer. The surveyed OpenTUI apps use several
+state models, and none needs a store library.
 
-- React state with `useReducer` and context. Rejected: operation lifetime would live in effects, or
-  need a second coordinator outside React.
-- A store library such as Zustand, or Effect atoms. Rejected: a small hand-written store covers one
-  session, and no measured render contention calls for selectors.
-- A generic event bus. Rejected: it hides who owns each state change.
-- One hand-written session store outside React. Chosen: one owner for state and operation lifetime,
-  which headless tests drive the same way production does.
+gh-dash PR #746 shows a cache that made manual refresh show stale reviewer status. lazygit waits for
+one poll to finish before the next and drops results from an older refresh.
+
+A slow network call should not delay the first frame. Gemini CLI issue #27844 reports network work
+that delayed a local prompt.
 
 ## Decision
 
-The `session` module owns one store for application state. React reads it with
-`useSyncExternalStore`.
+The `session` module owns one hand-written store for application state outside React. React reads it
+with `useSyncExternalStore`. The store is one owner for state and operation lifetime, which headless
+tests drive the same way production does.
 
 ### Store
 
@@ -59,15 +56,30 @@ The `session` module owns one store for application state. React reads it with
 - An action captures its item and destination when it starts. A later refresh does not retarget it.
 - Actions run one at a time. Completions for an inactive action or a stopped session are ignored.
 
-## Tradeoffs
+## Consequences
+
+### Positive
 
 - Polling, actions, and shutdown have one owner that does not depend on React.
 - Tests drive the store with fake functions and a fake clock, without a renderer.
-- Cost: a hand-written store needs its own tests for subscription and snapshot identity.
-- Cost: every subscriber renders on each snapshot change. Selectors wait for measured contention.
 
-## See also
+### Negative
 
-- [ADR 0004: Capability modules with an enforced import table](./0004-capability-modules.md)
-- [gh-dash PR #746](https://github.com/dlvhdr/gh-dash/pull/746)
-- [Gemini CLI issue #27844](https://github.com/google-gemini/gemini-cli/issues/27844)
+- A hand-written store needs its own tests for subscription and snapshot identity.
+- Every subscriber renders on each snapshot change. Selectors wait for measured contention.
+
+## Alternatives considered
+
+### React state
+
+Use React state with `useReducer` and context. Rejected because operation lifetime would live in
+effects, or need a second coordinator outside React.
+
+### A store library
+
+Use a store library such as Zustand, or Effect atoms. Rejected because a small hand-written store
+covers one session, and no measured render contention calls for selectors.
+
+### A generic event bus
+
+Use a generic event bus. Rejected because it hides who owns each state change.

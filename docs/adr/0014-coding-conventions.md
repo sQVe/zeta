@@ -1,43 +1,33 @@
 # ADR 0014: Results for expected failures, exceptions for bugs, and checked boundaries
 
-- Status: Accepted
-- Date: 2026-10-03
+**Date**: 2026-10-03\
+**Status**: Accepted
 
 ## Context
 
-- The session runs refreshes, actions, and cache writes while the UI stays responsive. One failure
-  must never stop the session.
-- Data enters from `gh` output, config, the state file, and the cache. None of it can be trusted
-  until it is parsed.
-- Agents write much of the code, so the conventions must be explicit and easy to check in review.
-- A few values own resources that must be released exactly once, such as the SQLite handle, a child
-  process, or the renderer. Everything else is data and functions over it.
-- Every runtime dependency ships to every user. A version range would let a rebuild pick up new
-  dependency code that nobody reviewed.
-- Phi makes the same choices for the same reasons, and [ADR 0010](./0010-shared-project-base.md)
-  keeps shared decisions in line.
+The session runs refreshes, actions, and cache writes while the UI stays responsive. One failure
+must never stop the session.
 
-## Options considered
+Data enters from `gh` output, config, the state file, and the cache. None of it can be trusted until
+it is parsed.
 
-- Exceptions for every failure. Rejected: callers cannot see from a signature which failures to
-  expect, and a missed catch can stop the session.
-- Typed results for every failure, bugs included. Rejected: impossible states would spread checks
-  through every caller, and a bug would read like an expected outcome.
-- Assertions that run only in development builds. Rejected: a broken state in a release would go on
-  silently and fail later, far from its cause.
-- Add packages freely with version ranges. Rejected: each package adds size and supply-chain risk,
-  and a range can change shipped code without review.
-- Classes as the main unit of code, with inheritance for shared behavior. Rejected: state and
-  behavior mix, so code is harder to test without real resources, and base classes couple unrelated
-  modules.
-- Typed results for expected failures, exceptions for bugs, always-on invariants, and parsing at
-  every boundary. Chosen: expected failures are part of each signature, and bugs fail where they
-  happen.
+Agents write much of the code, so the conventions must be explicit and easy to check in review.
+
+A few values own resources that must be released exactly once, such as the SQLite handle, a child
+process, or the renderer. Everything else is data and functions over it.
+
+Every runtime dependency ships to every user. A version range would let a rebuild pick up new
+dependency code that nobody reviewed.
+
+Phi makes the same choices for the same reasons, and [ADR 0010](./0010-shared-project-base.md) keeps
+shared decisions in line.
 
 ## Decision
 
 Expected failures return typed results, and bugs throw. Zeta parses untrusted data once, at the
-boundary, with zod.
+boundary, with zod. Invariants are always on.
+
+Expected failures are part of each signature, and bugs fail where they happen.
 
 ### Errors
 
@@ -67,8 +57,8 @@ boundary, with zod.
 
 ### Names
 
-- Name files and folders in camelCase. A file named after the React component or class it exports
-  may use PascalCase, such as `StatusBar.tsx`.
+Name files and folders in camelCase. A file named after the React component or class it exports may
+use PascalCase, such as `StatusBar.tsx`.
 
 ### Dependencies
 
@@ -76,13 +66,46 @@ boundary, with zod.
 - Add a runtime dependency only with a stated reason. A core dependency needs an ADR.
 - Pin every dependency to an exact version.
 
-## Tradeoffs
+## Consequences
+
+### Positive
 
 - A caller sees each expected failure in the type and must handle it.
 - A bug fails where it happens, in every build, and stops only its refresh or action.
 - Code inside the boundary trusts its types and needs no defensive checks.
-- Cost: results add code at every call that can fail.
-- Cost: always-on invariants run in release builds, so they must stay cheap.
-- Cost: zod is a runtime dependency that every boundary relies on.
-- Cost: behavior that would sit on a class lives in module functions, so a reader finds a value's
+
+### Negative
+
+- Results add code at every call that can fail.
+- Always-on invariants run in release builds, so they must stay cheap.
+- zod is a runtime dependency that every boundary relies on.
+- Behavior that would sit on a class lives in module functions, so a reader finds a value's
   operations by its module, not its type.
+
+## Alternatives considered
+
+### Exceptions for every failure
+
+Use exceptions for every failure. Rejected because callers cannot see from a signature which
+failures to expect, and a missed catch can stop the session.
+
+### Typed results for every failure
+
+Use typed results for every failure, bugs included. Rejected because impossible states would spread
+checks through every caller, and a bug would read like an expected outcome.
+
+### Development-only assertions
+
+Use assertions that run only in development builds. Rejected because a broken state in a release
+would go on silently and fail later, far from its cause.
+
+### Packages with version ranges
+
+Add packages freely with version ranges. Rejected because each package adds size and supply-chain
+risk, and a range can change shipped code without review.
+
+### Classes and inheritance
+
+Use classes as the main unit of code, with inheritance for shared behavior. Rejected because state
+and behavior mix, so code is harder to test without real resources, and base classes couple
+unrelated modules.

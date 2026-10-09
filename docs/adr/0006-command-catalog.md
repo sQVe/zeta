@@ -1,30 +1,29 @@
 # ADR 0006: One command catalog as data
 
-- Status: Accepted
-- Date: 2026-10-01
+**Date**: 2026-10-01\
+**Status**: Accepted\
+**Related**: [ADR 0003: OpenTUI with React bindings as the renderer](./0003-opentui-react-renderer.md),
+[ADR 0005: One session store outside React](./0005-session-store.md),
+[ADR 0009: Versioned local state and config](./0009-local-state-and-config.md)
 
 ## Context
 
-- [ADR 0003](./0003-opentui-react-renderer.md) requires shortcuts from one keymap definition. Help,
-  availability, and user remaps need the same source, or they drift from the keys that work.
-- lazygit binding records carry a handler, description, scope, and disabled reason, and one record
-  drives invocation, help, and availability.
-- Ox splits navigation keys from action commands, and Gemini CLI keeps keyboard commands apart from
-  slash commands. Each split adds a second place to change.
-- A command written as a closure cannot tell help why it is disabled, and tests must run its effects
-  to see what it does.
+[ADR 0003](./0003-opentui-react-renderer.md) requires shortcuts from one keymap definition. Help,
+availability, and user remaps need the same source, or they drift from the keys that work.
 
-## Options considered
+lazygit binding records carry a handler, description, scope, and disabled reason. One record drives
+invocation, help, and availability.
 
-- Commands with a `run(dispatch)` closure. Rejected: help cannot explain a disabled command, and
-  tests must run effects to observe a command.
-- Bindings registered by each component. Rejected: ADR 0003 already requires one keymap definition.
-- One catalog of command data. Chosen: keymap, help, availability, and remaps read the same records,
-  and tests assert intents without running effects.
+Ox splits navigation keys from action commands, and Gemini CLI keeps keyboard commands apart from
+slash commands. Each split adds a second place to change.
+
+A command written as a closure cannot tell help why it is disabled, and tests must run its effects
+to see what it does.
 
 ## Decision
 
-`commands.ts` defines every command once, as data.
+`commands.ts` defines every command once, as data in one catalog. Keymap, help, availability, and
+remaps read the same records, and tests assert intents without running effects.
 
 ### Commands
 
@@ -50,15 +49,26 @@
 - Unknown ids, invalid keys, and one key bound to two commands in overlapping scopes stop startup.
 - Quit signals such as SIGINT still stop Zeta when the quit command has no keys.
 
-## Tradeoffs
+## Consequences
+
+### Positive
 
 - A key shown in help is a key that works, and help can say why a command is disabled.
 - Tests check a command by its intent, with no fakes for effects.
-- Cost: every command needs a catalog entry, even one used in a single place.
-- Cost: intents add a type for each action, which a closure would not need.
 
-## See also
+### Negative
 
-- [ADR 0003: OpenTUI with React bindings as the renderer](./0003-opentui-react-renderer.md)
-- [ADR 0005: One session store outside React](./0005-session-store.md)
-- [ADR 0009: Versioned local state and config](./0009-local-state-and-config.md)
+- Every command needs a catalog entry, even one used in a single place.
+- Intents add a type for each action, which a closure would not need.
+
+## Alternatives considered
+
+### Command closures
+
+Define commands with a `run(dispatch)` closure. Rejected because help cannot explain a disabled
+command, and tests must run effects to observe a command.
+
+### Component-owned bindings
+
+Let each component register bindings. Rejected because ADR 0003 already requires one keymap
+definition.
