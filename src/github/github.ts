@@ -32,7 +32,10 @@ export interface NotificationFeedRequest {
   firstPage?: NotificationPage;
 }
 
-export type NotificationVerification = { kind: 'stable' } | { kind: 'changed' };
+export interface NotificationVerification {
+  kind: 'stable' | 'changed';
+  pollInterval: number | null;
+}
 
 const notModifiedStatus = 304;
 
@@ -158,7 +161,9 @@ export const readNotificationFeed = async (
       } else if (stored === undefined) {
         return invalid(`Unexpected 304 for ${endpoint}`);
       } else {
-        page = stored;
+        const link = fetched.value.response.headers.get('link');
+
+        page = link === undefined ? stored : { ...stored, next: findNextPage(link) };
       }
     } else {
       page = reusable;
@@ -185,6 +190,8 @@ export const verifyNotificationFeed = async (
   feed: NotificationFeed,
   signal: AbortSignal,
 ): Promise<GitHubResult<NotificationVerification>> => {
+  let pollInterval: number | null = null;
+
   for (const stored of feed.pages) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- the pages are checked in order and stop at the first change
     const fetched = await fetchPage(effects, stored.endpoint, stored.etag, signal);
@@ -193,13 +200,15 @@ export const verifyNotificationFeed = async (
       return fetched;
     }
 
+    pollInterval = fetched.value.pollInterval ?? pollInterval;
+
     const unchanged =
       fetched.value.page === null && namesStoredNext(stored, fetched.value.response);
 
     if (!unchanged) {
-      return { ok: true, value: { kind: 'changed' } };
+      return { ok: true, value: { kind: 'changed', pollInterval } };
     }
   }
 
-  return { ok: true, value: { kind: 'stable' } };
+  return { ok: true, value: { kind: 'stable', pollInterval } };
 };

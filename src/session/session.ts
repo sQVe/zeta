@@ -143,6 +143,8 @@ export const createSession = (effects: SessionEffects): Session => {
       return { kind: 'failed', failure: verification.failure };
     }
 
+    rememberInterval(verification.value.pollInterval);
+
     if (verification.value.kind === 'stable') {
       return { kind: 'loaded', read: read.value };
     }

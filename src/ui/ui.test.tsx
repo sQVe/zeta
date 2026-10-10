@@ -34,7 +34,8 @@ const idleEffects: SessionEffects = {
       ok: true as const,
       value: { feed: { pages: [] }, threads: [], pollInterval: null },
     }),
-  verifyFeed: () => Promise.resolve({ ok: true as const, value: { kind: 'stable' as const } }),
+  verifyFeed: () =>
+    Promise.resolve({ ok: true as const, value: { kind: 'stable' as const, pollInterval: null } }),
   now: () => new Date(0),
   setTimer: () => () => undefined,
 };
@@ -432,7 +433,11 @@ test('the selected row stays in view when the list is taller than the screen', a
 test('the status line says the feed is busy when the list could not be checked', async () => {
   const effects: SessionEffects = {
     ...threadsEffects(threeThreads),
-    verifyFeed: () => Promise.resolve({ ok: true as const, value: { kind: 'changed' as const } }),
+    verifyFeed: () =>
+      Promise.resolve({
+        ok: true as const,
+        value: { kind: 'changed' as const, pollInterval: null },
+      }),
   };
 
   const { setup, press } = await mount('dark', effects);

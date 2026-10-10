@@ -78,8 +78,13 @@ const readOf = (
   value: { feed: makeFeed(label, threads), threads, pollInterval },
 });
 
-const stable: GitHubResult<NotificationVerification> = { ok: true, value: { kind: 'stable' } };
-const changed: GitHubResult<NotificationVerification> = { ok: true, value: { kind: 'changed' } };
+const verified = (
+  kind: 'stable' | 'changed',
+  pollInterval: number | null = null,
+): GitHubResult<NotificationVerification> => ({ ok: true, value: { kind, pollInterval } });
+
+const stable = verified('stable');
+const changed = verified('changed');
 
 const unchanged = (pollInterval: number | null = null): GitHubResult<NotificationPoll> => ({
   ok: true,
@@ -660,6 +665,26 @@ test('polls follow the poll interval with a 60 second floor', async () => {
 
   expect(activeTimers().map((timer) => timer.delay)).toEqual([60_000]);
   expect(session.getSnapshot().errorMessage).toBeNull();
+});
+
+test('the second pass interval sets the next poll', async () => {
+  const { session, answerRead, answerVerify, activeTimers } = makeHarness();
+
+  session.send({ kind: 'refresh' });
+  await answerRead(readOf('feed', [], 60));
+  await answerVerify(verified('stable', 120));
+
+  expect(activeTimers().map((timer) => timer.delay)).toEqual([120_000]);
+});
+
+test('a second pass without an interval keeps the first pass interval', async () => {
+  const { session, answerRead, answerVerify, activeTimers } = makeHarness();
+
+  session.send({ kind: 'refresh' });
+  await answerRead(readOf('feed', [], 120));
+  await answerVerify(verified('stable', null));
+
+  expect(activeTimers().map((timer) => timer.delay)).toEqual([120_000]);
 });
 
 test('polls use 60 seconds until GitHub sends an interval', async () => {

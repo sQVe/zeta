@@ -234,6 +234,26 @@ test('readNotificationFeed reuses page 1 from a poll without requesting it', asy
   expect(result.ok && result.value.feed.pages[0]?.etag).toBe('"a2"');
 });
 
+test('readNotificationFeed takes next from a 304 Link header without a next page', async () => {
+  const { feed } = await firstFeed();
+
+  const withoutNext: GhRun = {
+    kind: 'exited',
+    exitCode: 0,
+    stdout: `HTTP/2.0 304 Not Modified\r\nLink: <${firstUrl}>; rel="first"\r\n\r\n`,
+    stderr: '',
+  };
+
+  const { effects, endpoints } = makeEffects({ [firstUrl]: withoutNext });
+  const result = await readNotificationFeed(effects, { previous: feed }, signal);
+
+  expect(result.ok && result.value.feed.pages).toHaveLength(1);
+  expect(result.ok && result.value.feed.pages[0]?.next).toBeNull();
+  expect(result.ok && result.value.feed.pages[0]?.etag).toBe('"a"');
+  expect(result.ok && result.value.threads).toEqual([expectedThread('101'), expectedThread('102')]);
+  expect(endpoints).toEqual([firstUrl]);
+});
+
 test('readNotificationFeed returns the failure of page 2', async () => {
   const { effects } = makeEffects({ [firstUrl]: page([rawThread('101')], secondUrl, '"a"') });
 
@@ -306,7 +326,7 @@ test('verifyNotificationFeed is stable when every page answers 304', async () =>
 
   const result = await verifyNotificationFeed(effects, feed, signal);
 
-  expect(result).toEqual({ ok: true, value: { kind: 'stable' } });
+  expect(result).toEqual({ ok: true, value: { kind: 'stable', pollInterval: 90 } });
   expect(endpoints).toEqual([firstUrl, secondUrl, thirdUrl]);
 });
 
@@ -320,7 +340,7 @@ test('verifyNotificationFeed returns changed at the first 200 and stops', async 
 
   const result = await verifyNotificationFeed(effects, feed, signal);
 
-  expect(result).toEqual({ ok: true, value: { kind: 'changed' } });
+  expect(result).toEqual({ ok: true, value: { kind: 'changed', pollInterval: 60 } });
   expect(endpoints).toEqual([firstUrl, secondUrl]);
 });
 
@@ -335,7 +355,7 @@ test('verifyNotificationFeed returns changed when a 304 names a different next l
 
   const result = await verifyNotificationFeed(effects, feed, signal);
 
-  expect(result).toEqual({ ok: true, value: { kind: 'changed' } });
+  expect(result).toEqual({ ok: true, value: { kind: 'changed', pollInterval: 90 } });
 });
 
 test('verifyNotificationFeed returns the failure of a request', async () => {

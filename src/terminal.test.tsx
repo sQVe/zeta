@@ -26,7 +26,8 @@ const idleEffects: SessionEffects = {
       ok: true as const,
       value: { feed: { pages: [] }, threads: [], pollInterval: null },
     }),
-  verifyFeed: () => Promise.resolve({ ok: true as const, value: { kind: 'stable' as const } }),
+  verifyFeed: () =>
+    Promise.resolve({ ok: true as const, value: { kind: 'stable' as const, pollInterval: null } }),
   now: () => new Date(0),
   setTimer: () => () => undefined,
 };
