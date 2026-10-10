@@ -120,7 +120,6 @@ export const createSession = (effects: SessionEffects): Session => {
     }
   };
 
-  // Runs the first pass and the second pass. A changed second pass runs both again.
   const checkedRead = async (
     request: NotificationFeedRequest,
     signal: AbortSignal,
