@@ -3,6 +3,9 @@ export interface Palette {
   dim: string;
   key: string;
   overlayBackground: string;
+  selectedBackground: string;
+  typeLabel: string;
+  error: string;
 }
 
 const darkPalette: Palette = {
@@ -10,6 +13,9 @@ const darkPalette: Palette = {
   dim: '#4f5866',
   key: '#e5c07b',
   overlayBackground: '#1c2029',
+  selectedBackground: '#2c313c',
+  typeLabel: '#61afef',
+  error: '#e06c75',
 };
 
 const lightPalette: Palette = {
@@ -17,6 +23,9 @@ const lightPalette: Palette = {
   dim: '#a0a1a7',
   key: '#946200',
   overlayBackground: '#f3f4f6',
+  selectedBackground: '#dfe3ea',
+  typeLabel: '#2f6fb3',
+  error: '#ca1243',
 };
 
 export const pickPalette = (mode: 'light' | 'dark' | null): Palette => {

@@ -6,6 +6,7 @@ import type { GitHubEffects, GitHubResult } from './ghApi.ts';
 import { requestGh } from './ghApi.ts';
 import { findNextPage, notificationThreadSchema } from './notifications.ts';
 
+export { createGhRunner } from './ghApi.ts';
 export type { GitHubEffects, GitHubFailure, GitHubResult } from './ghApi.ts';
 
 const viewerSchema = z.object({ login: z.string().min(1) });
