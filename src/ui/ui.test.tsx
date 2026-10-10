@@ -362,6 +362,31 @@ test('a failed refresh keeps the rows and shows the error in the status line', a
   expect(frame).toContain('Boom');
 });
 
+test('a sign-in failure after a load keeps the rows and shows the fix in the status line', async () => {
+  let signedIn = true;
+
+  const effects: SessionEffects = {
+    readThreads: () =>
+      Promise.resolve(
+        signedIn
+          ? { ok: true as const, value: threeThreads }
+          : { ok: false as const, failure: { kind: 'notSignedIn' as const } },
+      ),
+    now: () => new Date(3 * 3_600_000),
+  };
+
+  const { setup, press } = await mount('dark', effects);
+
+  await press('r');
+  signedIn = false;
+  await press('r');
+
+  const frame = setup.captureCharFrame();
+
+  expect(frame).toContain('First');
+  expect(frame).toContain('Run gh auth login');
+});
+
 test('an empty inbox shows its notice, and loading shows before the first refresh', async () => {
   const { setup, press } = await mount();
 

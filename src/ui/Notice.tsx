@@ -8,9 +8,14 @@ const noticeText = {
   notSignedIn: 'Run gh auth login, then press r',
 };
 
+export const readNoticeText = (snapshot: Snapshot): string | null =>
+  snapshot.notice === null ? null : noticeText[snapshot.notice];
+
 const readMessage = (snapshot: Snapshot): { text: string; dim: boolean } | null => {
-  if (snapshot.notice !== null) {
-    return { text: noticeText[snapshot.notice], dim: false };
+  const notice = readNoticeText(snapshot);
+
+  if (notice !== null && snapshot.threads.length === 0) {
+    return { text: notice, dim: false };
   }
 
   if (!snapshot.hasLoaded) {
