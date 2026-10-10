@@ -1,7 +1,7 @@
 import { createCliRenderer } from '@opentui/core';
 import type { CliRenderer } from '@opentui/core';
 import { createDefaultOpenTuiKeymap } from '@opentui/keymap/opentui';
-import { createRoot } from '@opentui/react';
+import { createRoot, flushSync } from '@opentui/react';
 import type { ReactNode } from 'react';
 
 import type { Command, TerminalIntent } from './commands.ts';
@@ -225,15 +225,21 @@ export const startTerminal = async (
     renderer.on('theme_mode', onThemeMode);
     removers.push(() => renderer.off('theme_mode', onThemeMode));
 
-    root.render(
-      <App
-        session={session}
-        catalog={catalog}
-        keymap={keymap}
-        themeSource={themeSource}
-        onTerminalIntent={handleIntent}
-      />,
-    );
+    // The root renders concurrently, so without flushSync the first fetch would start before the
+    // UI has mounted and subscribed to the session.
+    flushSync(() => {
+      root.render(
+        <App
+          session={session}
+          catalog={catalog}
+          keymap={keymap}
+          themeSource={themeSource}
+          onTerminalIntent={handleIntent}
+        />,
+      );
+    });
+
+    session.send({ kind: 'refresh' });
   } catch (error) {
     fail(error);
   }

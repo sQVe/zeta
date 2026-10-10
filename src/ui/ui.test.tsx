@@ -10,6 +10,9 @@ import type { ReactNode } from 'react';
 import { catalog } from '../commands.ts';
 import type { TerminalIntent } from '../commands.ts';
 import { createSession } from '../session/session.ts';
+import type { SessionEffects } from '../session/session.ts';
+import { toThreadId } from '../work/work.ts';
+import type { NotificationThread } from '../work/work.ts';
 import { pickPalette } from './palette.ts';
 import { App } from './ui.tsx';
 import type { AppProps } from './ui.tsx';
@@ -17,6 +20,28 @@ import type { AppProps } from './ui.tsx';
 type Setup = Awaited<ReturnType<typeof testRender>>;
 
 Reflect.set(globalThis, 'IS_REACT_ACT_ENVIRONMENT', true);
+
+const idleEffects: SessionEffects = {
+  readThreads: () => Promise.resolve({ ok: true as const, value: [] }),
+  now: () => new Date(0),
+};
+
+const makeThread = (id: number, title: string): NotificationThread => ({
+  id: toThreadId(String(id)),
+  reason: 'subscribed',
+  unread: true,
+  updatedAt: '1970-01-01T00:00:00Z',
+  lastReadAt: null,
+  title,
+  subjectType: 'PullRequest',
+  subjectUrl: `https://api.github.com/repos/example/repo/pulls/${id}`,
+  repository: 'example/repo',
+});
+
+const threadsEffects = (threads: NotificationThread[]): SessionEffects => ({
+  readThreads: () => Promise.resolve({ ok: true as const, value: threads }),
+  now: () => new Date(3 * 3_600_000),
+});
 
 const setups: Setup[] = [];
 
@@ -35,7 +60,10 @@ const WithKeymap = (props: Omit<AppProps, 'keymap'>): ReactNode => {
   return <App {...props} keymap={keymap} />;
 };
 
-const mount = async (initialMode: 'light' | 'dark' | null = null) => {
+const mount = async (
+  initialMode: 'light' | 'dark' | null = null,
+  effects: SessionEffects = idleEffects,
+) => {
   let themeMode = initialMode;
   const themeListeners = new Set<() => void>();
 
@@ -58,7 +86,7 @@ const mount = async (initialMode: 'light' | 'dark' | null = null) => {
     });
   };
 
-  const session = createSession();
+  const session = createSession(effects);
   let sessionSubscribers = 0;
   const subscribe = session.subscribe;
 
@@ -245,4 +273,143 @@ test('a theme change keeps the overlay open, recolors it, and adds no subscriber
   await press('escape');
 
   expect(setup.captureCharFrame()).not.toContain('Toggle help');
+});
+
+const selectedRowText = (setup: Setup): string | undefined => {
+  const selectedBackground = RGBA.fromHex(pickPalette('dark').selectedBackground).toString();
+
+  const line = setup
+    .captureSpans()
+    .lines.find((candidate) =>
+      candidate.spans.some((span) => span.bg.toString() === selectedBackground),
+    );
+
+  return line?.spans.map((span) => span.text).join('');
+};
+
+const threeThreads = [makeThread(1, 'First'), makeThread(2, 'Second'), makeThread(3, 'Third')];
+
+test('r sends a refresh and the rows show type, number, title, and age', async () => {
+  const { setup, press, sent } = await mount('dark', threadsEffects(threeThreads));
+
+  await press('r');
+
+  const frame = setup.captureCharFrame();
+
+  expect(sent).toEqual([{ kind: 'refresh' }]);
+  expect(frame).toMatch(/PR\s+#1\s+First\s+3h/);
+  expect(frame).toContain('Second');
+  expect(frame).toContain('Third');
+});
+
+test('j and k move the selected row', async () => {
+  const { setup, press } = await mount('dark', threadsEffects(threeThreads));
+
+  await press('r');
+  expect(selectedRowText(setup)).toContain('First');
+
+  await press('j');
+  expect(selectedRowText(setup)).toContain('Second');
+
+  await press('j');
+  await press('k');
+  expect(selectedRowText(setup)).toContain('Second');
+});
+
+test('a refresh keeps the selection on the same thread when it still exists', async () => {
+  let threads = threeThreads;
+
+  const effects: SessionEffects = {
+    readThreads: () => Promise.resolve({ ok: true as const, value: threads }),
+    now: () => new Date(3 * 3_600_000),
+  };
+
+  const { setup, press } = await mount('dark', effects);
+
+  await press('r');
+  await press('j');
+  threads = [makeThread(0, 'Newest'), ...threeThreads];
+  await press('r');
+
+  expect(selectedRowText(setup)).toContain('Second');
+});
+
+test('a failed refresh keeps the rows and shows the error in the status line', async () => {
+  let fail = false;
+
+  const effects: SessionEffects = {
+    readThreads: () =>
+      Promise.resolve(
+        fail
+          ? {
+              ok: false as const,
+              failure: { kind: 'requestFailed' as const, status: 500, message: 'Boom' },
+            }
+          : { ok: true as const, value: threeThreads },
+      ),
+    now: () => new Date(3 * 3_600_000),
+  };
+
+  const { setup, press } = await mount('dark', effects);
+
+  await press('r');
+  fail = true;
+  await press('r');
+
+  const frame = setup.captureCharFrame();
+
+  expect(frame).toContain('First');
+  expect(frame).toContain('Boom');
+});
+
+test('a sign-in failure after a load keeps the rows and shows the fix in the status line', async () => {
+  let signedIn = true;
+
+  const effects: SessionEffects = {
+    readThreads: () =>
+      Promise.resolve(
+        signedIn
+          ? { ok: true as const, value: threeThreads }
+          : { ok: false as const, failure: { kind: 'notSignedIn' as const } },
+      ),
+    now: () => new Date(3 * 3_600_000),
+  };
+
+  const { setup, press } = await mount('dark', effects);
+
+  await press('r');
+  signedIn = false;
+  await press('r');
+
+  const frame = setup.captureCharFrame();
+
+  expect(frame).toContain('First');
+  expect(frame).toContain('Run gh auth login');
+});
+
+test('an empty inbox shows its notice, and loading shows before the first refresh', async () => {
+  const { setup, press } = await mount();
+
+  expect(setup.captureCharFrame()).toContain('Loading notifications');
+  expect(setup.captureCharFrame()).not.toContain('No open notifications');
+
+  await press('r');
+
+  expect(setup.captureCharFrame()).toContain('No open notifications');
+});
+
+test('the selected row stays in view when the list is taller than the screen', async () => {
+  const many = Array.from({ length: 40 }, (_, index) =>
+    makeThread(index + 1, `Thread ${index + 1}`),
+  );
+
+  const { setup, press } = await mount('dark', threadsEffects(many));
+
+  await press('r');
+
+  for (let step = 0; step < 30; step += 1) {
+    await press('j');
+  }
+
+  expect(selectedRowText(setup)).toContain('Thread 31');
 });

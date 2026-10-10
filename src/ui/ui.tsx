@@ -6,8 +6,10 @@ import { useState, useSyncExternalStore } from 'react';
 import type { Command, TerminalIntent } from '../commands.ts';
 import type { Session } from '../session/session.ts';
 import { HelpOverlay } from './HelpOverlay.tsx';
+import { hasNotice, Notice } from './Notice.tsx';
 import { pickPalette } from './palette.ts';
 import { StatusLine } from './StatusLine.tsx';
+import { ThreadList } from './ThreadList.tsx';
 
 type ThemeMode = 'light' | 'dark' | null;
 
@@ -79,7 +81,7 @@ const Keys = (props: KeysProps): null => {
 export const App = (props: AppProps): ReactNode => {
   const [helpOpen, setHelpOpen] = useState(false);
 
-  useSyncExternalStore(props.session.subscribe, props.session.getSnapshot);
+  const snapshot = useSyncExternalStore(props.session.subscribe, props.session.getSnapshot);
 
   const themeMode = useSyncExternalStore(
     props.themeSource.subscribe,
@@ -92,8 +94,12 @@ export const App = (props: AppProps): ReactNode => {
     <KeymapProvider keymap={props.keymap}>
       <Keys {...props} helpOpen={helpOpen} setHelpOpen={setHelpOpen} />
       <box flexDirection="column" flexGrow={1}>
-        <box flexGrow={1} />
-        <StatusLine palette={palette} />
+        {hasNotice(snapshot) ? (
+          <Notice snapshot={snapshot} palette={palette} />
+        ) : (
+          <ThreadList snapshot={snapshot} palette={palette} />
+        )}
+        <StatusLine snapshot={snapshot} palette={palette} />
       </box>
       {helpOpen ? <HelpOverlay catalog={props.catalog} palette={palette} /> : null}
     </KeymapProvider>

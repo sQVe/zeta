@@ -37,3 +37,9 @@ export const isDoneOnGitHub = (thread: NotificationThread): boolean =>
 
 export const selectOpenThreads = (threads: NotificationThread[]): NotificationThread[] =>
   threads.filter((thread) => !isDoneOnGitHub(thread));
+
+export const readSubjectNumber = (subjectUrl: string | null): number | null => {
+  const match = /\/(?:pulls|issues|discussions)\/(\d+)$/.exec(subjectUrl ?? '');
+
+  return match?.[1] === undefined ? null : Number(match[1]);
+};

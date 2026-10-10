@@ -1,7 +1,13 @@
 import { expect, test } from 'bun:test';
 
 import type { NotificationThread } from './work.ts';
-import { isDoneOnGitHub, selectOpenThreads, toThreadId, toViewerLogin } from './work.ts';
+import {
+  isDoneOnGitHub,
+  readSubjectNumber,
+  selectOpenThreads,
+  toThreadId,
+  toViewerLogin,
+} from './work.ts';
 
 const makeThread = (
   id: string,
@@ -52,4 +58,14 @@ test('toThreadId and toViewerLogin reject empty values', () => {
 test('isDoneOnGitHub is true only for a read thread with no last read time', () => {
   expect(isDoneOnGitHub(makeThread('6', { unread: false, lastReadAt: null }))).toBe(true);
   expect(isDoneOnGitHub(makeThread('7', { unread: true, lastReadAt: null }))).toBe(false);
+});
+
+test('readSubjectNumber reads pull request and issue numbers and returns null without one', () => {
+  const base = 'https://api.github.com/repos/o/r';
+
+  expect(readSubjectNumber(`${base}/pulls/12`)).toBe(12);
+  expect(readSubjectNumber(`${base}/issues/7`)).toBe(7);
+  expect(readSubjectNumber(`${base}/releases/555`)).toBeNull();
+  expect(readSubjectNumber(`${base}/commits/abc123def`)).toBeNull();
+  expect(readSubjectNumber(null)).toBeNull();
 });

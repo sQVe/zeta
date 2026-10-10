@@ -1,5 +1,8 @@
 import { expect, test } from 'bun:test';
 
+import { createTestRenderer } from '@opentui/core/testing';
+import { createDefaultOpenTuiKeymap } from '@opentui/keymap/opentui';
+import { createRoot } from '@opentui/react';
 import type { ReactElement } from 'react';
 
 import { catalog } from './commands.ts';
@@ -10,6 +13,11 @@ import type { AppProps } from './ui/ui.tsx';
 
 type ThemeMode = 'light' | 'dark' | null;
 type ThemeListener = (mode: ThemeMode) => void;
+
+const idleEffects = {
+  readThreads: () => Promise.resolve({ ok: true as const, value: [] }),
+  now: () => new Date(0),
+};
 
 const createHarness = (initialTheme: ThemeMode) => {
   const listeners = new Set<ThemeListener>();
@@ -50,7 +58,7 @@ const createHarness = (initialTheme: ThemeMode) => {
     printError: (error) => printed.push(error),
   };
 
-  const session = createSession();
+  const session = createSession(idleEffects);
   const latestTheme = () => rendered.at(-1)?.props.themeSource.getThemeMode() ?? null;
 
   return {
@@ -121,6 +129,45 @@ test('the renderer theme reaches the UI and later changes follow', async () => {
 
   expect(harness.latestTheme()).toBe('dark');
   expect(harness.rendered).toHaveLength(1);
+});
+
+test('the first refresh starts after the UI has mounted and subscribed', async () => {
+  const harness = createHarness('dark');
+  const { renderer } = await createTestRenderer({ width: 40, height: 10 });
+  const subscribersAtFetch: number[] = [];
+  let subscribers = 0;
+
+  const session = createSession({
+    readThreads: () => {
+      subscribersAtFetch.push(subscribers);
+
+      return Promise.resolve({ ok: true as const, value: [] });
+    },
+    now: () => new Date(0),
+  });
+
+  const subscribe = session.subscribe;
+
+  session.subscribe = (listener) => {
+    subscribers += 1;
+
+    return subscribe(listener);
+  };
+
+  harness.effects.open = () =>
+    Promise.resolve({
+      renderer,
+      root: createRoot(renderer),
+      keymap: createDefaultOpenTuiKeymap(renderer),
+    });
+
+  try {
+    await startTerminal({ session, catalog }, harness.effects);
+
+    expect(subscribersAtFetch).toEqual([1]);
+  } finally {
+    renderer.destroy();
+  }
 });
 
 test('an unknown theme gives the dark palette', async () => {
