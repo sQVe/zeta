@@ -3,7 +3,12 @@ import { expect, test } from 'bun:test';
 import { catalog } from './commands.ts';
 import { createSession } from './session/session.ts';
 
-const snapshot = createSession().getSnapshot();
+const idleEffects = {
+  readThreads: () => Promise.resolve({ ok: true as const, value: [] }),
+  now: () => new Date(0),
+};
+
+const snapshot = createSession(idleEffects).getSnapshot();
 
 test('quit returns a terminal intent and help returns a UI intent', () => {
   const intents = Object.fromEntries(

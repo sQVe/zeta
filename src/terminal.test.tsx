@@ -11,6 +11,11 @@ import type { AppProps } from './ui/ui.tsx';
 type ThemeMode = 'light' | 'dark' | null;
 type ThemeListener = (mode: ThemeMode) => void;
 
+const idleEffects = {
+  readThreads: () => Promise.resolve({ ok: true as const, value: [] }),
+  now: () => new Date(0),
+};
+
 const createHarness = (initialTheme: ThemeMode) => {
   const listeners = new Set<ThemeListener>();
   const handlers = new Map<string, (reason?: unknown) => void>();
@@ -50,7 +55,7 @@ const createHarness = (initialTheme: ThemeMode) => {
     printError: (error) => printed.push(error),
   };
 
-  const session = createSession();
+  const session = createSession(idleEffects);
   const latestTheme = () => rendered.at(-1)?.props.themeSource.getThemeMode() ?? null;
 
   return {

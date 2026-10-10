@@ -18,6 +18,11 @@ type Setup = Awaited<ReturnType<typeof testRender>>;
 
 Reflect.set(globalThis, 'IS_REACT_ACT_ENVIRONMENT', true);
 
+const idleEffects = {
+  readThreads: () => Promise.resolve({ ok: true as const, value: [] }),
+  now: () => new Date(0),
+};
+
 const setups: Setup[] = [];
 
 afterEach(() => {
@@ -58,7 +63,7 @@ const mount = async (initialMode: 'light' | 'dark' | null = null) => {
     });
   };
 
-  const session = createSession();
+  const session = createSession(idleEffects);
   let sessionSubscribers = 0;
   const subscribe = session.subscribe;
 
