@@ -3,7 +3,18 @@ import { z } from 'zod';
 import type { NotificationThread } from '../work/work.ts';
 import { toThreadId } from '../work/work.ts';
 
-export const notificationThreadSchema = z
+export interface NotificationPage {
+  endpoint: string;
+  etag: string | null;
+  threads: NotificationThread[];
+  next: string | null;
+}
+
+export interface NotificationFeed {
+  pages: NotificationPage[];
+}
+
+const notificationThreadSchema = z
   .object({
     id: z.string().min(1),
     unread: z.boolean(),
@@ -43,4 +54,16 @@ export const findNextPage = (linkHeader: string | undefined): string | null => {
   }
 
   return null;
+};
+
+export const notificationPageSchema = z.array(notificationThreadSchema);
+
+export const readPollInterval = (headers: ReadonlyMap<string, string>): number | null => {
+  const value = headers.get('x-poll-interval');
+
+  if (value === undefined || !/^\d+$/.test(value)) {
+    return null;
+  }
+
+  return Number(value);
 };
